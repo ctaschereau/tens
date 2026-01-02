@@ -274,6 +274,14 @@ aside h2 {
     display: block;
 }
 
+#game-board.can-pan {
+    cursor: grab;
+}
+
+#game-board.panning {
+    cursor: grabbing;
+}
+
 .board-overlay {
     position: absolute;
     inset: 0;

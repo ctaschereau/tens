@@ -57,7 +57,8 @@ const LANG_FR = {
   yourHand: "Votre Main",
   rotate: "Tourner",
   pass: "Passer",
-  rightClickHint: "Clic droit pour tourner",
+  rightClickHint:
+    "Clic droit pour tourner • Espace pour passer • Glisser pour déplacer",
 
   // Game over modal
   gameOver: "Partie Terminée!",

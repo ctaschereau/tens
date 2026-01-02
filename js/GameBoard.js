@@ -12,6 +12,13 @@ class GameBoard {
     this.offsetY = 0;
     this.hoveredCell = null;
 
+    // Panning state
+    this.isPanning = false;
+    this.panStartX = 0;
+    this.panStartY = 0;
+    this.panOffsetStartX = 0;
+    this.panOffsetStartY = 0;
+
     this.resize();
     this.setupEvents();
   }
@@ -33,19 +40,74 @@ class GameBoard {
       const rect = this.canvas.getBoundingClientRect();
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
+
+      // Handle panning
+      if (this.isPanning) {
+        const dx = x - this.panStartX;
+        const dy = y - this.panStartY;
+        this.offsetX = this.panOffsetStartX + dx;
+        this.offsetY = this.panOffsetStartY + dy;
+        this.render();
+        return;
+      }
+
       this.hoveredCell = this.pixelToGrid(x, y);
+      this.updateCursor();
       this.render();
     });
 
     this.canvas.addEventListener("mouseleave", () => {
       this.hoveredCell = null;
+      this.isPanning = false;
+      this.canvas.classList.remove("panning");
+      this.canvas.classList.remove("can-pan");
       this.render();
     });
 
+    this.canvas.addEventListener("mousedown", (e) => {
+      // Start panning with middle mouse button OR left click when no tile selected
+      const isMiddleButton = e.button === 1;
+      const isLeftButton = e.button === 0;
+      const noTileSelected = this.game.selectedTile === null;
+
+      if (isMiddleButton || (isLeftButton && noTileSelected)) {
+        e.preventDefault();
+        const rect = this.canvas.getBoundingClientRect();
+        this.isPanning = true;
+        this.panStartX = e.clientX - rect.left;
+        this.panStartY = e.clientY - rect.top;
+        this.panOffsetStartX = this.offsetX;
+        this.panOffsetStartY = this.offsetY;
+        this.canvas.classList.add("panning");
+      }
+    });
+
+    this.canvas.addEventListener("mouseup", (e) => {
+      if (this.isPanning) {
+        this.isPanning = false;
+        this.canvas.classList.remove("panning");
+        this.updateCursor();
+      }
+    });
+
     this.canvas.addEventListener("click", (e) => {
+      // Don't process click if we just finished panning
       const rect = this.canvas.getBoundingClientRect();
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
+
+      // Check if this was a pan operation (mouse moved significantly)
+      if (this.panStartX !== 0 || this.panStartY !== 0) {
+        const dx = Math.abs(x - this.panStartX);
+        const dy = Math.abs(y - this.panStartY);
+        if (dx > 5 || dy > 5) {
+          // This was a pan, not a click
+          this.panStartX = 0;
+          this.panStartY = 0;
+          return;
+        }
+      }
+
       const cell = this.pixelToGrid(x, y);
       if (cell && this.game.selectedTile !== null) {
         this.game.attemptPlacement(cell.row, cell.col);
@@ -59,6 +121,22 @@ class GameBoard {
         this.game.rotateSelectedTile();
       }
     });
+
+    // Prevent middle-click auto-scroll
+    this.canvas.addEventListener("auxclick", (e) => {
+      if (e.button === 1) {
+        e.preventDefault();
+      }
+    });
+  }
+
+  updateCursor() {
+    // Show grab cursor when no tile is selected (ready to pan)
+    if (this.game.selectedTile === null) {
+      this.canvas.classList.add("can-pan");
+    } else {
+      this.canvas.classList.remove("can-pan");
+    }
   }
 
   /**
@@ -264,6 +342,9 @@ class GameBoard {
   render() {
     const ctx = this.ctx;
     ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+    // Update cursor based on selection state
+    this.updateCursor();
 
     // Draw placed tiles
     for (const [key, tile] of this.tiles) {

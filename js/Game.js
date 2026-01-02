@@ -97,12 +97,31 @@ class Game {
         this.dismissTurnAnnouncement();
       });
 
-    // ESC key to dismiss setup modal (only if game in progress)
+    // Keyboard shortcuts
     document.addEventListener("keydown", (e) => {
+      // ESC key to dismiss setup modal (only if game in progress)
       if (e.key === "Escape") {
         const setupModal = document.getElementById("setup-modal");
         if (setupModal.classList.contains("show") && this.gameStarted) {
           setupModal.classList.remove("show");
+        }
+      }
+
+      // Spacebar to pass turn
+      if (e.key === " " || e.code === "Space") {
+        // Don't trigger if typing in an input field
+        if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") {
+          return;
+        }
+        // Don't trigger if a modal is open
+        const anyModalOpen = document.querySelector(".modal.show");
+        if (anyModalOpen) {
+          return;
+        }
+        // Only if game is started
+        if (this.gameStarted) {
+          e.preventDefault();
+          this.passTurn();
         }
       }
     });

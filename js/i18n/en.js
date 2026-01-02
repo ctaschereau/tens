@@ -56,7 +56,7 @@ const LANG_EN = {
   yourHand: "Your Hand",
   rotate: "Rotate",
   pass: "Pass",
-  rightClickHint: "Right-click to rotate",
+  rightClickHint: "Right-click to rotate • Space to pass • Drag to pan",
 
   // Game over modal
   gameOver: "Game Over!",
