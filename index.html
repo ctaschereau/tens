@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TENS - Triangle Tile Game</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Splash Screen -->
+    <div class="splash-screen" id="splash-screen">
+        <div class="splash-content">
+            <h1 class="splash-title">TENS</h1>
+            <div class="splash-subtitle">Triangle Tile Game</div>
+            <div class="splash-rules">Match Colors • Sum to Ten</div>
+            <div class="splash-hint">Click anywhere to continue</div>
+        </div>
+    </div>
+
+    <!-- Turn Announcement -->
+    <div class="turn-announcement" id="turn-announcement">
+        <div class="turn-text" id="turn-text"></div>
+    </div>
+
+    <!-- Setup Modal -->
+    <div class="modal" id="setup-modal">
+        <div class="modal-content setup-content">
+            <h2>Game Setup</h2>
+            <div class="setup-group">
+                <label for="setup-player-count">Number of Players</label>
+                <select id="setup-player-count">
+                    <option value="2">2 Players</option>
+                    <option value="3">3 Players</option>
+                    <option value="4">4 Players</option>
+                </select>
+            </div>
+            <div class="setup-group">
+                <label>Player Names</label>
+                <div class="setup-names" id="setup-names-container"></div>
+            </div>
+            <button class="btn btn-primary" id="start-game-btn">Start Game</button>
+        </div>
+    </div>
+
+    <div class="game-container">
+        <header class="game-header">
+            <h1 class="game-title">TENS</h1>
+        </header>
+
+        <div class="game-info">
+            <div class="player-indicator">
+                <span class="label">Current Player</span>
+                <span class="player-name" id="current-player">Player 1</span>
+            </div>
+            <button class="btn btn-primary btn-new-game" id="new-game-btn">New Game</button>
+            <div class="score-board">
+                <div class="score" id="score-p1">
+                    <span class="player-dot" style="--dot-color: #ff6b6b"></span>
+                    <span>P1: <strong>0</strong></span>
+                </div>
+                <div class="score" id="score-p2">
+                    <span class="player-dot" style="--dot-color: #4ecdc4"></span>
+                    <span>P2: <strong>0</strong></span>
+                </div>
+            </div>
+        </div>
+
+        <main class="game-main">
+            <aside class="player-hand" id="player-hand">
+                <h2>Your Hand</h2>
+                <div class="hand-tiles" id="hand-tiles"></div>
+                <button class="btn btn-secondary" id="rotate-btn" disabled>
+                    <span class="btn-icon">↻</span> Rotate
+                </button>
+                <div class="hint">Right-click to rotate</div>
+            </aside>
+
+            <div class="board-container">
+                <canvas id="game-board"></canvas>
+                <div class="board-overlay" id="board-overlay"></div>
+            </div>
+
+            <aside class="game-controls">
+                <h2>Game Info</h2>
+                <button class="btn btn-secondary" id="pass-btn">Pass Turn</button>
+                <div class="tiles-remaining">
+                    <span class="label">Tiles Left</span>
+                    <span class="count" id="tiles-remaining">0</span>
+                </div>
+            </aside>
+        </main>
+
+        <div class="game-message" id="game-message"></div>
+    </div>
+
+    <div class="modal" id="game-over-modal">
+        <div class="modal-content">
+            <h2>Game Over!</h2>
+            <div class="winner" id="winner-text"></div>
+            <div class="final-scores" id="final-scores"></div>
+            <button class="btn btn-primary" id="play-again-btn">Play Again</button>
+        </div>
+    </div>
+
+    <script src="js/constants.js"></script>
+    <script src="js/Triangle.js"></script>
+    <script src="js/GameBoard.js"></script>
+    <script src="js/Game.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>
