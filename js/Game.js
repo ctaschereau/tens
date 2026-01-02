@@ -1,12 +1,13 @@
 /**
  * Main game controller handling players, turns, and game state.
+ * This is the core local game logic - online functionality is added
+ * via OnlineGameExtension.
  */
 class Game {
   constructor() {
     this.canvas = document.getElementById("game-board");
     this.board = new GameBoard(this.canvas, this);
     this.cpuPlayer = new CPUPlayer(this);
-    this.network = new NetworkManager(this);
 
     this.playerCount = 2;
     this.handSize = 6; // Fixed hand size
@@ -18,10 +19,6 @@ class Game {
     this.tileBag = [];
     this.scores = [];
     this.gameStarted = false;
-    this.gameMode = "local"; // 'local', 'host', 'join'
-
-    // Initialize Firebase (optional - works offline if not available)
-    this.network.init();
 
     this.setupUI();
     this.showSplashScreen();
@@ -64,28 +61,6 @@ class Game {
       this.startGameFromSetup();
     });
 
-    // Game mode selection
-    document.querySelectorAll('input[name="game-mode"]').forEach((radio) => {
-      radio.addEventListener("change", (e) => {
-        this.onGameModeChanged(e.target.value);
-      });
-    });
-
-    // Lobby controls
-    document.getElementById("copy-code-btn")?.addEventListener("click", () => {
-      this.copyRoomCode();
-    });
-    document
-      .getElementById("leave-lobby-btn")
-      ?.addEventListener("click", () => {
-        this.leaveLobby();
-      });
-    document
-      .getElementById("start-online-btn")
-      ?.addEventListener("click", () => {
-        this.startOnlineGame();
-      });
-
     // Splash screen
     const splashScreen = document.getElementById("splash-screen");
     splashScreen.addEventListener("click", () => this.dismissSplash());
@@ -125,44 +100,6 @@ class Game {
         }
       }
     });
-  }
-
-  /**
-   * Handle game mode selection change
-   */
-  onGameModeChanged(mode) {
-    this.gameMode = mode;
-
-    const joinGroup = document.getElementById("join-game-group");
-    const nameGroup = document.getElementById("online-name-group");
-    const playerCountGroup = document.getElementById("player-count-group");
-    const playersGroup = document.getElementById("players-group");
-    const startBtn = document.getElementById("start-game-btn");
-    const errorEl = document.getElementById("online-error");
-
-    // Hide error
-    errorEl.style.display = "none";
-
-    // Show/hide relevant sections
-    if (mode === "local") {
-      joinGroup.style.display = "none";
-      nameGroup.style.display = "none";
-      playerCountGroup.style.display = "block";
-      playersGroup.style.display = "block";
-      startBtn.textContent = I18n.t("startGame");
-    } else if (mode === "host") {
-      joinGroup.style.display = "none";
-      nameGroup.style.display = "block";
-      playerCountGroup.style.display = "block";
-      playersGroup.style.display = "none";
-      startBtn.textContent = I18n.t("createRoom");
-    } else if (mode === "join") {
-      joinGroup.style.display = "block";
-      nameGroup.style.display = "block";
-      playerCountGroup.style.display = "none";
-      playersGroup.style.display = "none";
-      startBtn.textContent = I18n.t("joinRoom");
-    }
   }
 
   /**
@@ -211,23 +148,6 @@ class Game {
     document.getElementById("setup-player-count").value =
       this.playerCount.toString();
     document.getElementById("setup-language").value = I18n.getCurrentLanguage();
-
-    // Reset game mode to local
-    document.querySelector(
-      'input[name="game-mode"][value="local"]'
-    ).checked = true;
-    this.gameMode = "local";
-    this.onGameModeChanged("local");
-
-    // Clear online inputs
-    const roomCodeInput = document.getElementById("join-room-code");
-    const nameInput = document.getElementById("online-player-name");
-    if (roomCodeInput) roomCodeInput.value = "";
-    if (nameInput) nameInput.value = "";
-
-    // Hide any error
-    document.getElementById("online-error").style.display = "none";
-
     this.updateAllText();
     this.updateSetupPlayerInputs();
     document.getElementById("setup-modal").classList.add("show");
@@ -265,19 +185,8 @@ class Game {
   }
 
   startGameFromSetup() {
-    const errorEl = document.getElementById("online-error");
-    errorEl.style.display = "none";
-
-    if (this.gameMode === "local") {
-      // Local game - existing logic
-      this.startLocalGame();
-    } else if (this.gameMode === "host") {
-      // Host online game
-      this.hostOnlineGame();
-    } else if (this.gameMode === "join") {
-      // Join online game
-      this.joinOnlineGame();
-    }
+    // Start local game (can be overridden by OnlineGameExtension)
+    this.startLocalGame();
   }
 
   /**
@@ -317,245 +226,6 @@ class Game {
 
     // Start the game
     this.newGame();
-  }
-
-  /**
-   * Host an online game
-   */
-  async hostOnlineGame() {
-    const errorEl = document.getElementById("online-error");
-
-    if (!this.network.isAvailable()) {
-      errorEl.textContent = I18n.t("firebaseNotAvailable");
-      errorEl.style.display = "block";
-      return;
-    }
-
-    const playerName =
-      document.getElementById("online-player-name").value.trim() ||
-      I18n.t("defaultPlayer", { n: 1 });
-    this.playerCount = parseInt(
-      document.getElementById("setup-player-count").value
-    );
-
-    try {
-      const roomCode = await this.network.hostGame(
-        playerName,
-        this.playerCount
-      );
-
-      // Hide setup, show lobby
-      document.getElementById("setup-modal").classList.remove("show");
-      this.showLobby(roomCode);
-    } catch (error) {
-      console.error("Failed to host game:", error);
-      errorEl.textContent = I18n.t("failedToHost");
-      errorEl.style.display = "block";
-    }
-  }
-
-  /**
-   * Join an online game
-   */
-  async joinOnlineGame() {
-    const errorEl = document.getElementById("online-error");
-
-    if (!this.network.isAvailable()) {
-      errorEl.textContent = I18n.t("firebaseNotAvailable");
-      errorEl.style.display = "block";
-      return;
-    }
-
-    const roomCode = document.getElementById("join-room-code").value.trim();
-    const playerName =
-      document.getElementById("online-player-name").value.trim() ||
-      I18n.t("defaultPlayer", { n: 2 });
-
-    if (!roomCode || roomCode.length < 4) {
-      errorEl.textContent = I18n.t("enterValidCode");
-      errorEl.style.display = "block";
-      return;
-    }
-
-    try {
-      await this.network.joinGame(roomCode, playerName);
-
-      // Hide setup, show lobby
-      document.getElementById("setup-modal").classList.remove("show");
-      this.showLobby(roomCode);
-    } catch (error) {
-      console.error("Failed to join game:", error);
-      const errorKey = error.message || "failedToJoin";
-      errorEl.textContent = I18n.t(errorKey);
-      errorEl.style.display = "block";
-    }
-  }
-
-  /**
-   * Show the lobby modal
-   */
-  showLobby(roomCode) {
-    document.getElementById("lobby-room-code").textContent = roomCode;
-    this.updateLobbyPlayers();
-    document.getElementById("lobby-modal").classList.add("show");
-  }
-
-  /**
-   * Update lobby player list
-   */
-  updateLobbyPlayers() {
-    const container = document.getElementById("lobby-players");
-    const statusEl = document.getElementById("lobby-status");
-    const startBtn = document.getElementById("start-online-btn");
-
-    container.innerHTML = "";
-
-    const players = this.network.getConnectedPlayersList();
-    const expectedCount = this.playerCount;
-
-    // Create slots for all expected players
-    for (let i = 0; i < expectedCount; i++) {
-      const player = players.find((p) => p.slot === i);
-      const slot = document.createElement("div");
-      slot.className = `lobby-player-slot ${player ? "filled" : "waiting"}`;
-
-      const icon = document.createElement("span");
-      icon.className = "slot-icon";
-      icon.textContent = player ? "👤" : "⏳";
-
-      const name = document.createElement("span");
-      name.className = "slot-name";
-      name.textContent = player ? player.name : I18n.t("waitingForPlayer");
-
-      slot.appendChild(icon);
-      slot.appendChild(name);
-
-      // Mark if this is the current player
-      if (
-        player &&
-        this.network.playerId &&
-        this.network.connectedPlayers.get(this.network.playerId)?.slot === i
-      ) {
-        const youTag = document.createElement("span");
-        youTag.className = "slot-you";
-        youTag.textContent = I18n.t("you");
-        slot.appendChild(youTag);
-      }
-
-      container.appendChild(slot);
-    }
-
-    // Update status and start button
-    const connectedCount = players.length;
-    const isReady = connectedCount >= expectedCount;
-
-    if (isReady) {
-      statusEl.textContent = I18n.t("allPlayersReady");
-      statusEl.classList.add("ready");
-    } else {
-      statusEl.textContent = I18n.t("waitingForMore", {
-        current: connectedCount,
-        total: expectedCount,
-      });
-      statusEl.classList.remove("ready");
-    }
-
-    // Only host can start, and only when ready
-    startBtn.disabled = !this.network.isHost || !isReady;
-    startBtn.style.display = this.network.isHost ? "block" : "none";
-  }
-
-  /**
-   * Copy room code to clipboard
-   */
-  async copyRoomCode() {
-    const code = document.getElementById("lobby-room-code").textContent;
-    try {
-      await navigator.clipboard.writeText(code);
-      this.showMessage(I18n.t("codeCopied"));
-    } catch (e) {
-      // Fallback for older browsers
-      const input = document.createElement("input");
-      input.value = code;
-      document.body.appendChild(input);
-      input.select();
-      document.execCommand("copy");
-      document.body.removeChild(input);
-      this.showMessage(I18n.t("codeCopied"));
-    }
-  }
-
-  /**
-   * Leave the lobby
-   */
-  async leaveLobby() {
-    await this.network.leaveGame();
-    document.getElementById("lobby-modal").classList.remove("show");
-    this.showSetupModal();
-  }
-
-  /**
-   * Start the online game (host only)
-   */
-  async startOnlineGame() {
-    if (!this.network.isHost) return;
-
-    // Set up player names from lobby
-    const players = this.network.getConnectedPlayersList();
-    this.playerNames = [];
-    this.cpuPlayers = [];
-
-    for (let i = 0; i < this.playerCount; i++) {
-      const player = players.find((p) => p.slot === i);
-      this.playerNames[i] =
-        player?.name || I18n.t("defaultPlayer", { n: i + 1 });
-      this.cpuPlayers[i] = false; // No CPU in online games
-    }
-
-    // Hide lobby
-    document.getElementById("lobby-modal").classList.remove("show");
-
-    // Initialize game
-    this.newGame();
-
-    // Broadcast initial state to all players
-    const state = this.serializeState();
-    await this.network.startOnlineGame(state);
-  }
-
-  /**
-   * Called when an online game starts (for non-host players)
-   */
-  onOnlineGameStarted() {
-    document.getElementById("lobby-modal").classList.remove("show");
-    // State will be applied via applyRemoteState
-  }
-
-  /**
-   * Called when a player joins the lobby
-   */
-  onPlayerJoined(playerData) {
-    this.updateLobbyPlayers();
-    if (document.getElementById("lobby-modal").classList.contains("show")) {
-      this.showMessage(I18n.t("playerJoined", { name: playerData.name }));
-    }
-  }
-
-  /**
-   * Called when a player's status updates
-   */
-  onPlayerUpdated(playerData) {
-    this.updateLobbyPlayers();
-  }
-
-  /**
-   * Called when a player leaves
-   */
-  onPlayerLeft(playerData) {
-    this.updateLobbyPlayers();
-    if (playerData) {
-      this.showMessage(I18n.t("playerLeft", { name: playerData.name }), true);
-    }
   }
 
   getPlayerName(index) {
@@ -637,11 +307,8 @@ class Game {
   }
 
   selectTile(index) {
-    // Don't allow selection if CPU is playing (local mode)
-    if (!this.network.isOnline && this.isCurrentPlayerCPU()) return;
-
-    // Don't allow selection if it's not our turn (online mode)
-    if (this.network.isOnline && !this.isMyTurn()) return;
+    // Don't allow selection if CPU is playing
+    if (this.isCurrentPlayerCPU()) return;
 
     if (this.selectedTile === index) {
       this.selectedTile = null;
@@ -666,12 +333,6 @@ class Game {
   attemptPlacement(row, col) {
     if (this.selectedTile === null) return;
 
-    // In online mode, check if it's our turn
-    if (this.network.isOnline && !this.isMyTurn()) {
-      this.showMessage(I18n.t("notYourTurn"), true);
-      return;
-    }
-
     const hand = this.getCurrentPlayerHand();
     const triangle = hand[this.selectedTile];
     const result = this.board.canPlace(row, col, triangle);
@@ -692,11 +353,9 @@ class Game {
       // Check for game over (current player has no tiles)
       if (this.checkGameOver()) {
         this.endGame();
-        this.broadcastState(); // Broadcast final state
       } else {
         this.showMessage(I18n.t("pointsScored", { n: points }));
         this.nextTurn();
-        this.broadcastState(); // Broadcast state after turn
       }
     } else {
       this.showMessage(result.reason, true);
@@ -738,11 +397,6 @@ class Game {
     // Don't allow manual pass if CPU is playing
     if (this.isCurrentPlayerCPU() && !this.cpuPlayer.isThinking()) return;
 
-    // In online mode, check if it's our turn
-    if (this.network.isOnline && !this.isMyTurn()) {
-      return;
-    }
-
     const currentName = this.getPlayerName(this.currentPlayer);
 
     // Draw a new tile when passing
@@ -758,10 +412,8 @@ class Game {
     // Check if game should end (player has no tiles after failing to draw)
     if (this.checkGameOver()) {
       this.endGame();
-      this.broadcastState(); // Broadcast final state
     } else {
       this.nextTurn();
-      this.broadcastState(); // Broadcast state after turn
     }
   }
 
@@ -770,20 +422,14 @@ class Game {
     this.selectedTile = null;
     this.cpuPlayer.setThinking(false);
     document.getElementById("rotate-btn").disabled = true;
-
-    // Disable pass button if CPU's turn or not our turn in online mode
-    const disablePass = this.network.isOnline
-      ? !this.isMyTurn()
-      : this.isCurrentPlayerCPU();
-    document.getElementById("pass-btn").disabled = disablePass;
-
+    document.getElementById("pass-btn").disabled = this.isCurrentPlayerCPU();
     this.updateUI();
     this.board.render();
 
     // Show turn announcement
     this.showTurnAnnouncement(this.getPlayerName(this.currentPlayer), () => {
-      // After announcement, check if current player is CPU (local mode only)
-      if (!this.network.isOnline && this.isCurrentPlayerCPU()) {
+      // After announcement, check if current player is CPU
+      if (this.isCurrentPlayerCPU()) {
         this.cpuPlayer.scheduleTurn((bestMove) => {
           this.placeTileDirectly(
             bestMove.tileIndex,
@@ -915,34 +561,22 @@ class Game {
 
   renderHand() {
     const container = document.getElementById("hand-tiles");
-
-    // In online mode, always show your own hand
-    let hand;
-
-    if (this.network.isOnline) {
-      const mySlot = this.network.getMySlot();
-      hand = this.players[mySlot];
-    } else {
-      hand = this.getCurrentPlayerHand();
-    }
+    const hand = this.getCurrentPlayerHand();
 
     container.innerHTML = "";
 
     if (!hand) return;
 
-    // If CPU player (local mode only), show cards face down
-    const isCPU = !this.network.isOnline && this.isCurrentPlayerCPU();
-
-    // Determine if interaction should be enabled
-    const canInteract = this.network.isOnline ? this.isMyTurn() : !isCPU;
+    // If CPU player, show cards face down or hide them
+    const isCPU = this.isCurrentPlayerCPU();
 
     hand.forEach((triangle, index) => {
       const svg = TileRenderer.createHandTileSVG(
         triangle,
-        index === this.selectedTile && canInteract,
+        index === this.selectedTile,
         isCPU
       );
-      if (canInteract) {
+      if (!isCPU) {
         svg.addEventListener("click", () => this.selectTile(index));
         // Right-click to rotate on hand tiles
         svg.addEventListener("contextmenu", (e) => {
@@ -965,132 +599,5 @@ class Game {
     setTimeout(() => {
       msg.classList.remove("show");
     }, 2500);
-  }
-
-  // ================================
-  // Serialization for Online Play
-  // ================================
-
-  /**
-   * Serialize the complete game state for network transmission
-   */
-  serializeState() {
-    return {
-      currentPlayer: this.currentPlayer,
-      scores: [...this.scores],
-      playerNames: [...this.playerNames],
-      playerCount: this.playerCount,
-      tileBag: this.tileBag.map((t) => this.serializeTile(t)),
-      board: this.serializeBoard(),
-      hands: this.players.map((hand) => hand.map((t) => this.serializeTile(t))),
-      gameStarted: this.gameStarted,
-    };
-  }
-
-  /**
-   * Serialize a single triangle tile
-   */
-  serializeTile(triangle) {
-    return {
-      sides: triangle.sides.map((s) => ({ value: s.value, color: s.color })),
-      rotation: triangle.rotation,
-    };
-  }
-
-  /**
-   * Serialize the board state
-   */
-  serializeBoard() {
-    const boardData = {};
-    for (const [key, tile] of this.board.tiles) {
-      boardData[key] = {
-        triangle: this.serializeTile(tile.triangle),
-        pointsUp: tile.pointsUp,
-      };
-    }
-    return boardData;
-  }
-
-  /**
-   * Deserialize a triangle tile
-   */
-  deserializeTile(data) {
-    const t = new Triangle(
-      data.sides.map((s) => ({ value: s.value, color: s.color }))
-    );
-    t.rotation = data.rotation;
-    return t;
-  }
-
-  /**
-   * Apply state received from the network
-   */
-  applyRemoteState(state) {
-    // Update game state
-    this.currentPlayer = state.currentPlayer;
-    this.scores = [...state.scores];
-    this.playerNames = [...state.playerNames];
-    this.playerCount = state.playerCount;
-    this.gameStarted = state.gameStarted;
-
-    // Restore tile bag
-    this.tileBag = state.tileBag.map((t) => this.deserializeTile(t));
-
-    // Restore board
-    this.board.tiles.clear();
-    for (const [key, tileData] of Object.entries(state.board)) {
-      const [row, col] = key.split(",").map(Number);
-      const triangle = this.deserializeTile(tileData.triangle);
-      this.board.tiles.set(key, {
-        triangle,
-        pointsUp: tileData.pointsUp,
-      });
-    }
-
-    // Restore hands
-    this.players = state.hands.map((hand) =>
-      hand.map((t) => this.deserializeTile(t))
-    );
-
-    // Reset selection
-    this.selectedTile = null;
-
-    // Update button states for online mode
-    document.getElementById("rotate-btn").disabled = true;
-    document.getElementById("pass-btn").disabled = !this.isMyTurn();
-
-    // Update UI
-    this.updateUI();
-    this.board.render();
-
-    // Show turn announcement if it's now our turn
-    if (this.isMyTurn()) {
-      this.showMessage(
-        I18n.t("playerTurn", { name: this.getPlayerName(this.currentPlayer) })
-      );
-    }
-
-    // Check if game is over
-    if (this.checkGameOver()) {
-      this.endGame();
-    }
-  }
-
-  /**
-   * Check if it's this player's turn in online mode
-   */
-  isMyTurn() {
-    if (!this.network.isOnline) return true;
-    return this.currentPlayer === this.network.getMySlot();
-  }
-
-  /**
-   * Broadcast current state to other players
-   */
-  async broadcastState() {
-    if (this.network.isOnline) {
-      const state = this.serializeState();
-      await this.network.sendAction("state", state);
-    }
   }
 }

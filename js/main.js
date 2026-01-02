@@ -8,6 +8,10 @@ document.addEventListener("DOMContentLoaded", () => {
   // Create game instance
   game = new Game();
 
+  // Apply online multiplayer extension (adds network capabilities)
+  // This keeps the base Game class clean and focused on local game logic
+  OnlineGameExtension.apply(game);
+
   // Apply initial translations
   game.updateAllText();
 });
