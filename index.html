@@ -38,8 +38,8 @@
                 </select>
             </div>
             <div class="setup-group">
-                <label>Player Names</label>
-                <div class="setup-names" id="setup-names-container"></div>
+                <label>Players</label>
+                <div class="setup-players" id="setup-players-container"></div>
             </div>
             <button class="btn btn-primary" id="start-game-btn">Start Game</button>
         </div>
@@ -72,9 +72,12 @@
             <aside class="player-hand" id="player-hand">
                 <h2>Your Hand</h2>
                 <div class="hand-tiles" id="hand-tiles"></div>
-                <button class="btn btn-secondary" id="rotate-btn" disabled>
-                    <span class="btn-icon">↻</span> Rotate
-                </button>
+                <div class="hand-buttons">
+                    <button class="btn btn-secondary" id="rotate-btn" disabled>
+                        <span class="btn-icon">↻</span> Rotate
+                    </button>
+                    <button class="btn btn-secondary" id="pass-btn">Pass</button>
+                </div>
                 <div class="hint">Right-click to rotate</div>
             </aside>
 
@@ -82,15 +85,6 @@
                 <canvas id="game-board"></canvas>
                 <div class="board-overlay" id="board-overlay"></div>
             </div>
-
-            <aside class="game-controls">
-                <h2>Game Info</h2>
-                <button class="btn btn-secondary" id="pass-btn">Pass Turn</button>
-                <div class="tiles-remaining">
-                    <span class="label">Tiles Left</span>
-                    <span class="count" id="tiles-remaining">0</span>
-                </div>
-            </aside>
         </main>
 
         <div class="game-message" id="game-message"></div>

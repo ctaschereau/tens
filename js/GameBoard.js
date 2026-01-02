@@ -7,7 +7,7 @@ class GameBoard {
     this.ctx = canvas.getContext("2d");
     this.game = game;
     this.tiles = new Map(); // key: "row,col" -> { triangle, pointsUp }
-    this.triangleSize = 60; // Height of triangle
+    this.triangleSize = 85; // Height of triangle (matches hand tiles)
     this.offsetX = 0;
     this.offsetY = 0;
     this.hoveredCell = null;
@@ -387,7 +387,7 @@ class GameBoard {
       // Offset toward center
       const toCenter = { x: x - midX, y: y - midY };
       const len = Math.sqrt(toCenter.x * toCenter.x + toCenter.y * toCenter.y);
-      const offset = 12;
+      const offset = 18;
       const labelX = midX + (toCenter.x / len) * offset;
       const labelY = midY + (toCenter.y / len) * offset;
 

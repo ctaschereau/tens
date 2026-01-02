@@ -10,11 +10,13 @@ class Game {
     this.handSize = 6; // Fixed hand size
     this.players = [];
     this.playerNames = [];
+    this.cpuPlayers = []; // Track which players are CPU
     this.currentPlayer = 0;
     this.selectedTile = null;
     this.tileBag = [];
     this.scores = [];
     this.gameStarted = false;
+    this.cpuThinking = false; // Prevent multiple CPU moves
 
     this.setupUI();
     this.showSplashScreen();
@@ -37,10 +39,12 @@ class Game {
     });
 
     // Setup modal
-    document.getElementById("setup-player-count").addEventListener("change", (e) => {
-      this.playerCount = parseInt(e.target.value);
-      this.updateSetupNameInputs();
-    });
+    document
+      .getElementById("setup-player-count")
+      .addEventListener("change", (e) => {
+        this.playerCount = parseInt(e.target.value);
+        this.updateSetupPlayerInputs();
+      });
 
     document.getElementById("start-game-btn").addEventListener("click", () => {
       this.startGameFromSetup();
@@ -51,9 +55,11 @@ class Game {
     splashScreen.addEventListener("click", () => this.dismissSplash());
 
     // Turn announcement click to dismiss
-    document.getElementById("turn-announcement").addEventListener("click", () => {
-      this.dismissTurnAnnouncement();
-    });
+    document
+      .getElementById("turn-announcement")
+      .addEventListener("click", () => {
+        this.dismissTurnAnnouncement();
+      });
   }
 
   showSplashScreen() {
@@ -81,34 +87,69 @@ class Game {
 
   showSetupModal() {
     // Reset to defaults
-    document.getElementById("setup-player-count").value = this.playerCount.toString();
-    this.updateSetupNameInputs();
+    document.getElementById("setup-player-count").value =
+      this.playerCount.toString();
+    this.updateSetupPlayerInputs();
     document.getElementById("setup-modal").classList.add("show");
   }
 
-  updateSetupNameInputs() {
-    const container = document.getElementById("setup-names-container");
+  updateSetupPlayerInputs() {
+    const container = document.getElementById("setup-players-container");
     container.innerHTML = "";
 
     for (let i = 0; i < this.playerCount; i++) {
+      const row = document.createElement("div");
+      row.className = "setup-player-row";
+
       const input = document.createElement("input");
       input.type = "text";
       input.placeholder = `Player ${i + 1}`;
       input.value = this.playerNames[i] || "";
       input.dataset.playerIndex = i;
-      container.appendChild(input);
+
+      const cpuLabel = document.createElement("label");
+      cpuLabel.className = "cpu-toggle";
+
+      const cpuCheckbox = document.createElement("input");
+      cpuCheckbox.type = "checkbox";
+      cpuCheckbox.checked = this.cpuPlayers[i] || false;
+      cpuCheckbox.dataset.playerIndex = i;
+
+      cpuLabel.appendChild(cpuCheckbox);
+      cpuLabel.appendChild(document.createTextNode("CPU"));
+
+      row.appendChild(input);
+      row.appendChild(cpuLabel);
+      container.appendChild(row);
     }
   }
 
   startGameFromSetup() {
     // Read player count
-    this.playerCount = parseInt(document.getElementById("setup-player-count").value);
+    this.playerCount = parseInt(
+      document.getElementById("setup-player-count").value
+    );
 
-    // Read names from setup inputs
-    const inputs = document.querySelectorAll("#setup-names-container input");
+    // Read names and CPU settings from setup inputs
+    const nameInputs = document.querySelectorAll(
+      "#setup-players-container input[type='text']"
+    );
+    const cpuCheckboxes = document.querySelectorAll(
+      "#setup-players-container input[type='checkbox']"
+    );
+
     this.playerNames = [];
-    inputs.forEach((input, i) => {
-      this.playerNames[i] = input.value.trim() || `Player ${i + 1}`;
+    this.cpuPlayers = [];
+
+    nameInputs.forEach((input, i) => {
+      const isCPU = cpuCheckboxes[i]?.checked || false;
+      this.cpuPlayers[i] = isCPU;
+      // If CPU and no custom name, use "CPU 1", "CPU 2", etc.
+      if (isCPU && !input.value.trim()) {
+        this.playerNames[i] = `CPU ${i + 1}`;
+      } else {
+        this.playerNames[i] = input.value.trim() || `Player ${i + 1}`;
+      }
     });
 
     // Hide setup modal
@@ -122,12 +163,17 @@ class Game {
     return this.playerNames[index] || `Player ${index + 1}`;
   }
 
+  isCurrentPlayerCPU() {
+    return this.cpuPlayers[this.currentPlayer] === true;
+  }
+
   newGame() {
     this.board.clear();
     this.currentPlayer = 0;
     this.selectedTile = null;
     this.scores = Array(this.playerCount).fill(0);
     this.gameStarted = true;
+    this.cpuThinking = false;
 
     // Initialize player names if not set
     for (let i = 0; i < this.playerCount; i++) {
@@ -153,7 +199,12 @@ class Game {
     this.updateUI();
 
     // Show first player's turn announcement
-    this.showTurnAnnouncement(this.getPlayerName(0));
+    this.showTurnAnnouncement(this.getPlayerName(0), () => {
+      // After announcement, check if first player is CPU
+      if (this.isCurrentPlayerCPU()) {
+        this.scheduleCPUTurn();
+      }
+    });
   }
 
   createTileBag() {
@@ -180,6 +231,9 @@ class Game {
   }
 
   selectTile(index) {
+    // Don't allow selection if CPU is playing
+    if (this.isCurrentPlayerCPU()) return;
+
     if (this.selectedTile === index) {
       this.selectedTile = null;
     } else {
@@ -232,7 +286,41 @@ class Game {
     }
   }
 
+  // CPU-specific placement (bypasses selection)
+  placeTileDirectly(tileIndex, row, col, rotation) {
+    const hand = this.getCurrentPlayerHand();
+    const triangle = hand[tileIndex];
+
+    // Set rotation
+    triangle.rotation = rotation;
+
+    // Calculate score
+    const matchingSides = this.board.countMatchingSides(row, col);
+    const points = matchingSides * 10;
+    this.scores[this.currentPlayer] += points;
+
+    // Place tile
+    this.board.placeTile(row, col, triangle);
+
+    // Remove from hand
+    hand.splice(tileIndex, 1);
+
+    this.updateUI();
+    this.board.render();
+
+    // Check for game over
+    if (this.checkGameOver()) {
+      this.endGame();
+    } else {
+      this.showMessage(`+${points} points!`);
+      this.nextTurn();
+    }
+  }
+
   passTurn() {
+    // Don't allow manual pass if CPU is playing
+    if (this.isCurrentPlayerCPU() && !this.cpuThinking) return;
+
     const currentName = this.getPlayerName(this.currentPlayer);
 
     // Draw a new tile when passing
@@ -256,26 +344,128 @@ class Game {
   nextTurn() {
     this.currentPlayer = (this.currentPlayer + 1) % this.playerCount;
     this.selectedTile = null;
+    this.cpuThinking = false;
     document.getElementById("rotate-btn").disabled = true;
-    document.getElementById("pass-btn").disabled = false;
+    document.getElementById("pass-btn").disabled = this.isCurrentPlayerCPU();
     this.updateUI();
     this.board.render();
 
     // Show turn announcement
-    this.showTurnAnnouncement(this.getPlayerName(this.currentPlayer));
+    this.showTurnAnnouncement(this.getPlayerName(this.currentPlayer), () => {
+      // After announcement, check if current player is CPU
+      if (this.isCurrentPlayerCPU()) {
+        this.scheduleCPUTurn();
+      }
+    });
   }
 
-  showTurnAnnouncement(playerName) {
+  scheduleCPUTurn() {
+    if (this.cpuThinking) return;
+    this.cpuThinking = true;
+
+    // Add a delay to make CPU moves visible
+    setTimeout(() => {
+      this.playCPUTurn();
+    }, 800);
+  }
+
+  playCPUTurn() {
+    if (!this.gameStarted || this.checkGameOver()) return;
+
+    const hand = this.getCurrentPlayerHand();
+    let bestMove = null;
+    let bestScore = -1;
+
+    // Find the best move (highest score)
+    for (let tileIndex = 0; tileIndex < hand.length; tileIndex++) {
+      const triangle = hand[tileIndex];
+      const originalRotation = triangle.rotation;
+
+      // Try all rotations
+      for (let rotation = 0; rotation < 3; rotation++) {
+        triangle.rotation = rotation;
+
+        // Get all valid placements for this tile/rotation
+        const placements = this.findValidPlacements(triangle);
+
+        for (const placement of placements) {
+          const score = this.board.countMatchingSides(
+            placement.row,
+            placement.col
+          );
+          if (score > bestScore) {
+            bestScore = score;
+            bestMove = {
+              tileIndex,
+              row: placement.row,
+              col: placement.col,
+              rotation,
+            };
+          }
+        }
+      }
+
+      // Restore original rotation
+      triangle.rotation = originalRotation;
+    }
+
+    if (bestMove) {
+      // Make the move
+      this.placeTileDirectly(
+        bestMove.tileIndex,
+        bestMove.row,
+        bestMove.col,
+        bestMove.rotation
+      );
+    } else {
+      // No valid move, pass turn
+      this.cpuThinking = true; // Allow pass
+      this.passTurn();
+    }
+  }
+
+  findValidPlacements(triangle) {
+    const validPositions = [];
+
+    if (this.board.tiles.size === 0) {
+      return [{ row: 0, col: 0 }];
+    }
+
+    const checked = new Set();
+
+    for (const [key] of this.board.tiles) {
+      const [row, col] = key.split(",").map(Number);
+      const adjacent = this.board.getAdjacentCells(row, col);
+
+      for (const adj of adjacent) {
+        const adjKey = this.board.getKey(adj.row, adj.col);
+        if (checked.has(adjKey)) continue;
+        checked.add(adjKey);
+
+        if (this.board.canPlace(adj.row, adj.col, triangle).valid) {
+          validPositions.push({ row: adj.row, col: adj.col });
+        }
+      }
+    }
+
+    return validPositions;
+  }
+
+  showTurnAnnouncement(playerName, callback) {
     const announcement = document.getElementById("turn-announcement");
     const text = document.getElementById("turn-text");
-    text.textContent = `${playerName}'s Turn`;
+
+    const isCPU = this.cpuPlayers[this.currentPlayer];
+    text.textContent = isCPU ? `${playerName}'s Turn` : `${playerName}'s Turn`;
     text.style.color = PLAYER_COLORS[this.currentPlayer];
     announcement.classList.add("show");
 
-    // Auto-dismiss after 1.5 seconds
+    // Auto-dismiss after 1.5 seconds (shorter for CPU)
+    const duration = isCPU ? 1000 : 1500;
     this.turnAnnouncementTimeout = setTimeout(() => {
       this.dismissTurnAnnouncement();
-    }, 1500);
+      if (callback) callback();
+    }, duration);
   }
 
   dismissTurnAnnouncement() {
@@ -305,6 +495,7 @@ class Game {
   }
 
   endGame() {
+    this.gameStarted = false;
     const maxScore = Math.max(...this.scores);
     const winners = this.scores
       .map((score, index) => ({ score, index }))
@@ -322,8 +513,9 @@ class Game {
     const scoresHtml = this.scores
       .map((score, i) => {
         const isWinner = score === maxScore;
+        const isCPU = this.cpuPlayers[i];
         return `<div class="score-row ${isWinner ? "winner-row" : ""}">
-                <span>${this.getPlayerName(i)}</span>
+                <span>${this.getPlayerName(i)}${isCPU ? " (CPU)" : ""}</span>
                 <span>${score} points</span>
             </div>`;
       })
@@ -336,15 +528,13 @@ class Game {
   updateUI() {
     // Update current player display
     const playerName = document.getElementById("current-player");
-    playerName.textContent = this.getPlayerName(this.currentPlayer);
+    const isCPU = this.cpuPlayers[this.currentPlayer];
+    playerName.textContent =
+      this.getPlayerName(this.currentPlayer) + (isCPU ? " (CPU)" : "");
     playerName.style.color = PLAYER_COLORS[this.currentPlayer];
 
     // Update scores
     this.updateScoreBoard();
-
-    // Update tiles remaining
-    document.getElementById("tiles-remaining").textContent =
-      this.tileBag.length;
 
     // Render hand
     this.renderHand();
@@ -381,21 +571,30 @@ class Game {
 
     if (!hand) return;
 
+    // If CPU player, show cards face down or hide them
+    const isCPU = this.isCurrentPlayerCPU();
+
     hand.forEach((triangle, index) => {
-      const svg = this.createTriangleSVG(triangle, index === this.selectedTile);
-      svg.addEventListener("click", () => this.selectTile(index));
-      // Right-click to rotate on hand tiles
-      svg.addEventListener("contextmenu", (e) => {
-        e.preventDefault();
-        this.selectTile(index);
-        this.rotateSelectedTile();
-      });
+      const svg = this.createTriangleSVG(
+        triangle,
+        index === this.selectedTile,
+        isCPU
+      );
+      if (!isCPU) {
+        svg.addEventListener("click", () => this.selectTile(index));
+        // Right-click to rotate on hand tiles
+        svg.addEventListener("contextmenu", (e) => {
+          e.preventDefault();
+          this.selectTile(index);
+          this.rotateSelectedTile();
+        });
+      }
       container.appendChild(svg);
     });
   }
 
-  createTriangleSVG(triangle, selected = false) {
-    const size = 70;
+  createTriangleSVG(triangle, selected = false, hidden = false) {
+    const size = 85;
     const h = size;
     const w = (h * 2) / Math.sqrt(3);
 
@@ -405,6 +604,7 @@ class Game {
     svg.setAttribute("viewBox", `0 0 ${w + 10} ${h + 10}`);
     svg.classList.add("hand-tile");
     if (selected) svg.classList.add("selected");
+    if (hidden) svg.style.opacity = "0.5";
 
     const cx = w / 2 + 5;
     const cy = h / 2 + 5;
@@ -422,10 +622,30 @@ class Game {
       "polygon"
     );
     bg.setAttribute("points", vertices.map((v) => `${v.x},${v.y}`).join(" "));
-    bg.setAttribute("fill", "#1a1a25");
+    bg.setAttribute("fill", hidden ? "#2a2a3a" : "#1a1a25");
     bg.setAttribute("stroke", selected ? "#00f5d4" : "#2a2a3a");
     bg.setAttribute("stroke-width", selected ? "3" : "1");
     svg.appendChild(bg);
+
+    // If hidden (CPU), don't show the values/colors
+    if (hidden) {
+      // Draw a simple pattern to indicate hidden tile
+      const questionMark = document.createElementNS(
+        "http://www.w3.org/2000/svg",
+        "text"
+      );
+      questionMark.setAttribute("x", cx);
+      questionMark.setAttribute("y", cy + 5);
+      questionMark.setAttribute("text-anchor", "middle");
+      questionMark.setAttribute("dominant-baseline", "middle");
+      questionMark.setAttribute("fill", "#555566");
+      questionMark.setAttribute("font-family", "Orbitron, sans-serif");
+      questionMark.setAttribute("font-weight", "bold");
+      questionMark.setAttribute("font-size", "20");
+      questionMark.textContent = "?";
+      svg.appendChild(questionMark);
+      return svg;
+    }
 
     // Sides
     const sides = [
@@ -458,7 +678,7 @@ class Game {
 
       const toCenter = { x: cx - midX, y: cy - midY };
       const len = Math.sqrt(toCenter.x * toCenter.x + toCenter.y * toCenter.y);
-      const offset = 14;
+      const offset = 18;
       const labelX = midX + (toCenter.x / len) * offset;
       const labelY = midY + (toCenter.y / len) * offset;
 
