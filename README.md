@@ -6,6 +6,10 @@ A strategic triangle tile-matching game where colors must match and numbers must
 ![JavaScript](https://img.shields.io/badge/javascript-vanilla-f7df1e?style=for-the-badge&logo=javascript)
 ![License](https://img.shields.io/badge/license-MIT-7b2cbf?style=for-the-badge)
 
+## 🎮 Play Now!
+
+**[▶ Play TENS online](https://ctaschereau.github.io/tens/)** — No download required!
+
 ## About
 
 TENS is a multiplayer tile-placement game featuring triangular tiles. Each tile has three sides, and each side has a **color** and a **number** (0-10). The challenge? When placing tiles, adjacent sides must:
@@ -51,7 +55,7 @@ Simply open `index.html` in a modern web browser. No build process or server req
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/tens.git
+git clone https://github.com/ctaschereau/tens.git
 
 # Open in browser
 open index.html
