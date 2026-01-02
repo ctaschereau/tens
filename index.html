@@ -14,9 +14,9 @@
     <div class="splash-screen" id="splash-screen">
         <div class="splash-content">
             <h1 class="splash-title">TENS</h1>
-            <div class="splash-subtitle">Triangle Tile Game</div>
-            <div class="splash-rules">Match Colors • Sum to Ten</div>
-            <div class="splash-hint">Click anywhere to continue</div>
+            <div class="splash-subtitle" data-i18n="splashSubtitle">Triangle Tile Game</div>
+            <div class="splash-rules" data-i18n="splashRules">Match Colors • Sum to Ten</div>
+            <div class="splash-hint" data-i18n="splashHint">Click anywhere to continue</div>
         </div>
     </div>
 
@@ -28,20 +28,27 @@
     <!-- Setup Modal -->
     <div class="modal" id="setup-modal">
         <div class="modal-content setup-content">
-            <h2>Game Setup</h2>
+            <h2 data-i18n="gameSetup">Game Setup</h2>
             <div class="setup-group">
-                <label for="setup-player-count">Number of Players</label>
-                <select id="setup-player-count">
-                    <option value="2">2 Players</option>
-                    <option value="3">3 Players</option>
-                    <option value="4">4 Players</option>
+                <label for="setup-language">Language</label>
+                <select id="setup-language">
+                    <option value="en">English</option>
+                    <option value="fr">Français</option>
                 </select>
             </div>
             <div class="setup-group">
-                <label>Players</label>
+                <label for="setup-player-count" data-i18n="numberOfPlayers">Number of Players</label>
+                <select id="setup-player-count">
+                    <option value="2" data-i18n="nPlayers" data-i18n-params='{"n":2}'>2 Players</option>
+                    <option value="3" data-i18n="nPlayers" data-i18n-params='{"n":3}'>3 Players</option>
+                    <option value="4" data-i18n="nPlayers" data-i18n-params='{"n":4}'>4 Players</option>
+                </select>
+            </div>
+            <div class="setup-group">
+                <label data-i18n="players">Players</label>
                 <div class="setup-players" id="setup-players-container"></div>
             </div>
-            <button class="btn btn-primary" id="start-game-btn">Start Game</button>
+            <button class="btn btn-primary" id="start-game-btn" data-i18n="startGame">Start Game</button>
         </div>
     </div>
 
@@ -52,10 +59,10 @@
 
         <div class="game-info">
             <div class="player-indicator">
-                <span class="label">Current Player</span>
+                <span class="label" data-i18n="currentPlayer">Current Player</span>
                 <span class="player-name" id="current-player">Player 1</span>
             </div>
-            <button class="btn btn-primary btn-new-game" id="new-game-btn">New Game</button>
+            <button class="btn btn-primary btn-new-game" id="new-game-btn" data-i18n="newGame">New Game</button>
             <div class="score-board">
                 <div class="score" id="score-p1">
                     <span class="player-dot" style="--dot-color: #ff6b6b"></span>
@@ -70,15 +77,15 @@
 
         <main class="game-main">
             <aside class="player-hand" id="player-hand">
-                <h2>Your Hand</h2>
+                <h2 data-i18n="yourHand">Your Hand</h2>
                 <div class="hand-tiles" id="hand-tiles"></div>
                 <div class="hand-buttons">
                     <button class="btn btn-secondary" id="rotate-btn" disabled>
-                        <span class="btn-icon">↻</span> Rotate
+                        <span class="btn-icon">↻</span> <span data-i18n="rotate">Rotate</span>
                     </button>
-                    <button class="btn btn-secondary" id="pass-btn">Pass</button>
+                    <button class="btn btn-secondary" id="pass-btn" data-i18n="pass">Pass</button>
                 </div>
-                <div class="hint">Right-click to rotate</div>
+                <div class="hint" data-i18n="rightClickHint">Right-click to rotate</div>
             </aside>
 
             <div class="board-container">
@@ -92,13 +99,16 @@
 
     <div class="modal" id="game-over-modal">
         <div class="modal-content">
-            <h2>Game Over!</h2>
+            <h2 data-i18n="gameOver">Game Over!</h2>
             <div class="winner" id="winner-text"></div>
             <div class="final-scores" id="final-scores"></div>
-            <button class="btn btn-primary" id="play-again-btn">Play Again</button>
+            <button class="btn btn-primary" id="play-again-btn" data-i18n="playAgain">Play Again</button>
         </div>
     </div>
 
+    <script src="js/i18n/en.js"></script>
+    <script src="js/i18n/fr.js"></script>
+    <script src="js/i18n/i18n.js"></script>
     <script src="js/constants.js"></script>
     <script src="js/Triangle.js"></script>
     <script src="js/GameBoard.js"></script>

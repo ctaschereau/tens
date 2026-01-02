@@ -38,6 +38,15 @@ class Game {
       this.showSetupModal();
     });
 
+    // Language selector
+    document
+      .getElementById("setup-language")
+      .addEventListener("change", (e) => {
+        I18n.setLanguage(e.target.value);
+        this.updateAllText();
+        this.updateSetupPlayerInputs();
+      });
+
     // Setup modal
     document
       .getElementById("setup-player-count")
@@ -60,6 +69,24 @@ class Game {
       .addEventListener("click", () => {
         this.dismissTurnAnnouncement();
       });
+  }
+
+  /**
+   * Update all text elements with data-i18n attributes
+   */
+  updateAllText() {
+    document.querySelectorAll("[data-i18n]").forEach((el) => {
+      const key = el.getAttribute("data-i18n");
+      const paramsAttr = el.getAttribute("data-i18n-params");
+      const params = paramsAttr ? JSON.parse(paramsAttr) : {};
+      el.textContent = I18n.t(key, params);
+    });
+
+    // Update language selector to match current language
+    const langSelect = document.getElementById("setup-language");
+    if (langSelect) {
+      langSelect.value = I18n.getCurrentLanguage();
+    }
   }
 
   showSplashScreen() {
@@ -89,6 +116,8 @@ class Game {
     // Reset to defaults
     document.getElementById("setup-player-count").value =
       this.playerCount.toString();
+    document.getElementById("setup-language").value = I18n.getCurrentLanguage();
+    this.updateAllText();
     this.updateSetupPlayerInputs();
     document.getElementById("setup-modal").classList.add("show");
   }
@@ -103,7 +132,7 @@ class Game {
 
       const input = document.createElement("input");
       input.type = "text";
-      input.placeholder = `Player ${i + 1}`;
+      input.placeholder = I18n.t("defaultPlayer", { n: i + 1 });
       input.value = this.playerNames[i] || "";
       input.dataset.playerIndex = i;
 
@@ -116,7 +145,7 @@ class Game {
       cpuCheckbox.dataset.playerIndex = i;
 
       cpuLabel.appendChild(cpuCheckbox);
-      cpuLabel.appendChild(document.createTextNode("CPU"));
+      cpuLabel.appendChild(document.createTextNode(I18n.t("cpu")));
 
       row.appendChild(input);
       row.appendChild(cpuLabel);
@@ -146,9 +175,10 @@ class Game {
       this.cpuPlayers[i] = isCPU;
       // If CPU and no custom name, use "CPU 1", "CPU 2", etc.
       if (isCPU && !input.value.trim()) {
-        this.playerNames[i] = `CPU ${i + 1}`;
+        this.playerNames[i] = I18n.t("defaultCPU", { n: i + 1 });
       } else {
-        this.playerNames[i] = input.value.trim() || `Player ${i + 1}`;
+        this.playerNames[i] =
+          input.value.trim() || I18n.t("defaultPlayer", { n: i + 1 });
       }
     });
 
@@ -160,7 +190,7 @@ class Game {
   }
 
   getPlayerName(index) {
-    return this.playerNames[index] || `Player ${index + 1}`;
+    return this.playerNames[index] || I18n.t("defaultPlayer", { n: index + 1 });
   }
 
   isCurrentPlayerCPU() {
@@ -178,7 +208,7 @@ class Game {
     // Initialize player names if not set
     for (let i = 0; i < this.playerCount; i++) {
       if (!this.playerNames[i]) {
-        this.playerNames[i] = `Player ${i + 1}`;
+        this.playerNames[i] = I18n.t("defaultPlayer", { n: i + 1 });
       }
     }
 
@@ -278,7 +308,7 @@ class Game {
       if (this.checkGameOver()) {
         this.endGame();
       } else {
-        this.showMessage(`+${points} points!`);
+        this.showMessage(I18n.t("pointsScored", { n: points }));
         this.nextTurn();
       }
     } else {
@@ -312,7 +342,7 @@ class Game {
     if (this.checkGameOver()) {
       this.endGame();
     } else {
-      this.showMessage(`+${points} points!`);
+      this.showMessage(I18n.t("pointsScored", { n: points }));
       this.nextTurn();
     }
   }
@@ -326,9 +356,9 @@ class Game {
     // Draw a new tile when passing
     if (this.tileBag.length > 0) {
       this.drawTiles(this.currentPlayer, 1);
-      this.showMessage(`${currentName} passed and drew a tile`);
+      this.showMessage(I18n.t("passedAndDrew", { name: currentName }));
     } else {
-      this.showMessage(`${currentName} passed (no tiles left to draw)`);
+      this.showMessage(I18n.t("passedNoDraw", { name: currentName }));
     }
 
     this.selectedTile = null;
@@ -455,8 +485,7 @@ class Game {
     const announcement = document.getElementById("turn-announcement");
     const text = document.getElementById("turn-text");
 
-    const isCPU = this.cpuPlayers[this.currentPlayer];
-    text.textContent = isCPU ? `${playerName}'s Turn` : `${playerName}'s Turn`;
+    text.textContent = I18n.t("playerTurn", { name: playerName });
     text.style.color = PLAYER_COLORS[this.currentPlayer];
     announcement.classList.add("show");
 
@@ -503,9 +532,11 @@ class Game {
 
     let winnerText;
     if (winners.length > 1) {
-      winnerText = "It's a tie!";
+      winnerText = I18n.t("itsATie");
     } else {
-      winnerText = `${this.getPlayerName(winners[0].index)} wins!`;
+      winnerText = I18n.t("playerWins", {
+        name: this.getPlayerName(winners[0].index),
+      });
     }
 
     document.getElementById("winner-text").textContent = winnerText;
@@ -515,8 +546,8 @@ class Game {
         const isWinner = score === maxScore;
         const isCPU = this.cpuPlayers[i];
         return `<div class="score-row ${isWinner ? "winner-row" : ""}">
-                <span>${this.getPlayerName(i)}${isCPU ? " (CPU)" : ""}</span>
-                <span>${score} points</span>
+                <span>${this.getPlayerName(i)}${isCPU ? I18n.t("cpuSuffix") : ""}</span>
+                <span>${I18n.t("nPoints", { n: score })}</span>
             </div>`;
       })
       .join("");
@@ -530,7 +561,7 @@ class Game {
     const playerName = document.getElementById("current-player");
     const isCPU = this.cpuPlayers[this.currentPlayer];
     playerName.textContent =
-      this.getPlayerName(this.currentPlayer) + (isCPU ? " (CPU)" : "");
+      this.getPlayerName(this.currentPlayer) + (isCPU ? I18n.t("cpuSuffix") : "");
     playerName.style.color = PLAYER_COLORS[this.currentPlayer];
 
     // Update scores

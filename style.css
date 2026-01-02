@@ -688,7 +688,7 @@ select:hover, select:focus {
 }
 
 .cpu-toggle {
-    display: flex;
+    display: inline-flex;
     align-items: center;
     gap: 0.5rem;
     cursor: pointer;
@@ -696,21 +696,25 @@ select:hover, select:focus {
     font-size: 0.9rem;
     color: var(--text-secondary);
     white-space: nowrap;
-    padding-left: 0.5rem;
+    height: 100%;
 }
 
 .cpu-toggle input[type="checkbox"] {
     appearance: none;
+    -webkit-appearance: none;
     width: 20px;
     height: 20px;
     min-width: 20px;
+    flex-shrink: 0;
     background: var(--bg-card);
     border: 2px solid var(--border-subtle);
     border-radius: 4px;
     cursor: pointer;
     transition: all var(--transition-fast);
     position: relative;
-    margin-right: 0.4rem;
+    margin: 0;
+    margin-right: 0.5rem;
+    vertical-align: middle;
 }
 
 .cpu-toggle input[type="checkbox"]:checked {

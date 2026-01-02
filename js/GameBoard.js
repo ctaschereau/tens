@@ -153,7 +153,7 @@ class GameBoard {
   canPlace(row, col, triangle) {
     // Can't place on existing tile
     if (this.hasTile(row, col)) {
-      return { valid: false, reason: "Cell occupied" };
+      return { valid: false, reason: I18n.t("cellOccupied") };
     }
 
     // If board is empty, can place anywhere
@@ -176,7 +176,10 @@ class GameBoard {
         if (mySide.color !== theirSide.color) {
           return {
             valid: false,
-            reason: `Colors don't match (${mySide.color} vs ${theirSide.color})`,
+            reason: I18n.t("colorsDontMatch", {
+              color1: mySide.color,
+              color2: theirSide.color,
+            }),
           };
         }
 
@@ -184,14 +187,16 @@ class GameBoard {
         if (mySide.value + theirSide.value !== 10) {
           return {
             valid: false,
-            reason: `Sum is ${mySide.value + theirSide.value}, not 10`,
+            reason: I18n.t("sumNotTen", {
+              sum: mySide.value + theirSide.value,
+            }),
           };
         }
       }
     }
 
     if (!hasAdjacentTile) {
-      return { valid: false, reason: "Must be adjacent to existing tile" };
+      return { valid: false, reason: I18n.t("mustBeAdjacent") };
     }
 
     return { valid: true };
