@@ -268,7 +268,15 @@ class GameBoard {
     // Draw placed tiles
     for (const [key, tile] of this.tiles) {
       const [row, col] = key.split(",").map(Number);
-      this.drawTriangle(row, col, tile.triangle, tile.pointsUp);
+      const { x, y } = this.gridToPixel(row, col);
+      TileRenderer.drawCanvasTriangle(
+        ctx,
+        x,
+        y,
+        this.triangleSize,
+        tile.triangle,
+        tile.pointsUp
+      );
     }
 
     // Draw hover preview
@@ -278,7 +286,16 @@ class GameBoard {
 
       if (triangle) {
         const canPlace = this.canPlace(row, col, triangle);
-        this.drawTrianglePreview(row, col, triangle, pointsUp, canPlace.valid);
+        const { x, y } = this.gridToPixel(row, col);
+        TileRenderer.drawCanvasTrianglePreview(
+          ctx,
+          x,
+          y,
+          this.triangleSize,
+          triangle,
+          pointsUp,
+          canPlace.valid
+        );
       }
     }
   }
@@ -298,142 +315,15 @@ class GameBoard {
     for (let row = -rows / 2; row < rows / 2; row++) {
       for (let col = -cols / 2; col < cols / 2; col++) {
         const pointsUp = (row + col) % 2 === 0;
-        this.drawTriangleOutline(row, col, pointsUp);
+        const { x, y } = this.gridToPixel(row, col);
+        TileRenderer.drawCanvasTriangleOutline(
+          ctx,
+          x,
+          y,
+          this.triangleSize,
+          pointsUp
+        );
       }
     }
-  }
-
-  drawTriangleOutline(row, col, pointsUp) {
-    const ctx = this.ctx;
-    const { x, y } = this.gridToPixel(row, col);
-    const h = this.triangleSize;
-    const w = (h * 2) / Math.sqrt(3);
-
-    ctx.beginPath();
-    if (pointsUp) {
-      ctx.moveTo(x, y - h / 2); // Top
-      ctx.lineTo(x - w / 2, y + h / 2); // Bottom left
-      ctx.lineTo(x + w / 2, y + h / 2); // Bottom right
-    } else {
-      ctx.moveTo(x, y + h / 2); // Bottom
-      ctx.lineTo(x - w / 2, y - h / 2); // Top left
-      ctx.lineTo(x + w / 2, y - h / 2); // Top right
-    }
-    ctx.closePath();
-    ctx.stroke();
-  }
-
-  drawTriangle(row, col, triangle, pointsUp, alpha = 1) {
-    const ctx = this.ctx;
-    const { x, y } = this.gridToPixel(row, col);
-    const h = this.triangleSize;
-    const w = (h * 2) / Math.sqrt(3);
-
-    // Calculate vertices
-    let vertices;
-    if (pointsUp) {
-      vertices = [
-        { x: x, y: y - h / 2 }, // Top (between sides 1 and 2)
-        { x: x - w / 2, y: y + h / 2 }, // Bottom left (between sides 0 and 1)
-        { x: x + w / 2, y: y + h / 2 }, // Bottom right (between sides 0 and 2)
-      ];
-    } else {
-      vertices = [
-        { x: x, y: y + h / 2 }, // Bottom (between sides 1 and 2)
-        { x: x - w / 2, y: y - h / 2 }, // Top left (between sides 0 and 1)
-        { x: x + w / 2, y: y - h / 2 }, // Top right (between sides 0 and 2)
-      ];
-    }
-
-    // Draw filled triangle with gradient
-    ctx.globalAlpha = alpha;
-
-    const gradient = ctx.createLinearGradient(
-      x - w / 2,
-      y - h / 2,
-      x + w / 2,
-      y + h / 2
-    );
-    gradient.addColorStop(0, "#1a1a25");
-    gradient.addColorStop(1, "#252535");
-
-    ctx.fillStyle = gradient;
-    ctx.beginPath();
-    ctx.moveTo(vertices[0].x, vertices[0].y);
-    ctx.lineTo(vertices[1].x, vertices[1].y);
-    ctx.lineTo(vertices[2].x, vertices[2].y);
-    ctx.closePath();
-    ctx.fill();
-
-    // Draw colored sides with values
-    const sides = [
-      [vertices[1], vertices[2]], // Side 0 (base)
-      [vertices[0], vertices[1]], // Side 1 (left)
-      [vertices[2], vertices[0]], // Side 2 (right)
-    ];
-
-    for (let i = 0; i < 3; i++) {
-      const side = triangle.getSide(i);
-      const [v1, v2] = sides[i];
-
-      // Draw colored side
-      ctx.strokeStyle = COLORS[side.color];
-      ctx.lineWidth = 4;
-      ctx.lineCap = "round";
-      ctx.beginPath();
-      ctx.moveTo(v1.x, v1.y);
-      ctx.lineTo(v2.x, v2.y);
-      ctx.stroke();
-
-      // Draw value near the side
-      const midX = (v1.x + v2.x) / 2;
-      const midY = (v1.y + v2.y) / 2;
-
-      // Offset toward center
-      const toCenter = { x: x - midX, y: y - midY };
-      const len = Math.sqrt(toCenter.x * toCenter.x + toCenter.y * toCenter.y);
-      const offset = 18;
-      const labelX = midX + (toCenter.x / len) * offset;
-      const labelY = midY + (toCenter.y / len) * offset;
-
-      ctx.font = "bold 14px Rajdhani";
-      ctx.fillStyle = COLORS[side.color];
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillText(side.value.toString(), labelX, labelY);
-    }
-
-    ctx.globalAlpha = 1;
-  }
-
-  drawTrianglePreview(row, col, triangle, pointsUp, isValid) {
-    const ctx = this.ctx;
-    const { x, y } = this.gridToPixel(row, col);
-    const h = this.triangleSize;
-    const w = (h * 2) / Math.sqrt(3);
-
-    // Draw semi-transparent preview
-    ctx.globalAlpha = 0.6;
-    this.drawTriangle(row, col, triangle, pointsUp, 0.6);
-
-    // Draw validity indicator
-    ctx.globalAlpha = 0.8;
-    ctx.strokeStyle = isValid ? "#00f5d4" : "#ff6b6b";
-    ctx.lineWidth = 3;
-
-    ctx.beginPath();
-    if (pointsUp) {
-      ctx.moveTo(x, y - h / 2);
-      ctx.lineTo(x - w / 2, y + h / 2);
-      ctx.lineTo(x + w / 2, y + h / 2);
-    } else {
-      ctx.moveTo(x, y + h / 2);
-      ctx.lineTo(x - w / 2, y - h / 2);
-      ctx.lineTo(x + w / 2, y - h / 2);
-    }
-    ctx.closePath();
-    ctx.stroke();
-
-    ctx.globalAlpha = 1;
   }
 }

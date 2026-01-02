@@ -5,6 +5,7 @@ class Game {
   constructor() {
     this.canvas = document.getElementById("game-board");
     this.board = new GameBoard(this.canvas, this);
+    this.cpuPlayer = new CPUPlayer(this);
 
     this.playerCount = 2;
     this.handSize = 6; // Fixed hand size
@@ -16,7 +17,6 @@ class Game {
     this.tileBag = [];
     this.scores = [];
     this.gameStarted = false;
-    this.cpuThinking = false; // Prevent multiple CPU moves
 
     this.setupUI();
     this.showSplashScreen();
@@ -69,6 +69,16 @@ class Game {
       .addEventListener("click", () => {
         this.dismissTurnAnnouncement();
       });
+
+    // ESC key to dismiss setup modal (only if game in progress)
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") {
+        const setupModal = document.getElementById("setup-modal");
+        if (setupModal.classList.contains("show") && this.gameStarted) {
+          setupModal.classList.remove("show");
+        }
+      }
+    });
   }
 
   /**
@@ -203,7 +213,7 @@ class Game {
     this.selectedTile = null;
     this.scores = Array(this.playerCount).fill(0);
     this.gameStarted = true;
-    this.cpuThinking = false;
+    this.cpuPlayer.setThinking(false);
 
     // Initialize player names if not set
     for (let i = 0; i < this.playerCount; i++) {
@@ -232,7 +242,14 @@ class Game {
     this.showTurnAnnouncement(this.getPlayerName(0), () => {
       // After announcement, check if first player is CPU
       if (this.isCurrentPlayerCPU()) {
-        this.scheduleCPUTurn();
+        this.cpuPlayer.scheduleTurn((bestMove) => {
+          this.placeTileDirectly(
+            bestMove.tileIndex,
+            bestMove.row,
+            bestMove.col,
+            bestMove.rotation
+          );
+        });
       }
     });
   }
@@ -349,7 +366,7 @@ class Game {
 
   passTurn() {
     // Don't allow manual pass if CPU is playing
-    if (this.isCurrentPlayerCPU() && !this.cpuThinking) return;
+    if (this.isCurrentPlayerCPU() && !this.cpuPlayer.isThinking()) return;
 
     const currentName = this.getPlayerName(this.currentPlayer);
 
@@ -374,7 +391,7 @@ class Game {
   nextTurn() {
     this.currentPlayer = (this.currentPlayer + 1) % this.playerCount;
     this.selectedTile = null;
-    this.cpuThinking = false;
+    this.cpuPlayer.setThinking(false);
     document.getElementById("rotate-btn").disabled = true;
     document.getElementById("pass-btn").disabled = this.isCurrentPlayerCPU();
     this.updateUI();
@@ -384,101 +401,16 @@ class Game {
     this.showTurnAnnouncement(this.getPlayerName(this.currentPlayer), () => {
       // After announcement, check if current player is CPU
       if (this.isCurrentPlayerCPU()) {
-        this.scheduleCPUTurn();
+        this.cpuPlayer.scheduleTurn((bestMove) => {
+          this.placeTileDirectly(
+            bestMove.tileIndex,
+            bestMove.row,
+            bestMove.col,
+            bestMove.rotation
+          );
+        });
       }
     });
-  }
-
-  scheduleCPUTurn() {
-    if (this.cpuThinking) return;
-    this.cpuThinking = true;
-
-    // Add a delay to make CPU moves visible
-    setTimeout(() => {
-      this.playCPUTurn();
-    }, 800);
-  }
-
-  playCPUTurn() {
-    if (!this.gameStarted || this.checkGameOver()) return;
-
-    const hand = this.getCurrentPlayerHand();
-    let bestMove = null;
-    let bestScore = -1;
-
-    // Find the best move (highest score)
-    for (let tileIndex = 0; tileIndex < hand.length; tileIndex++) {
-      const triangle = hand[tileIndex];
-      const originalRotation = triangle.rotation;
-
-      // Try all rotations
-      for (let rotation = 0; rotation < 3; rotation++) {
-        triangle.rotation = rotation;
-
-        // Get all valid placements for this tile/rotation
-        const placements = this.findValidPlacements(triangle);
-
-        for (const placement of placements) {
-          const score = this.board.countMatchingSides(
-            placement.row,
-            placement.col
-          );
-          if (score > bestScore) {
-            bestScore = score;
-            bestMove = {
-              tileIndex,
-              row: placement.row,
-              col: placement.col,
-              rotation,
-            };
-          }
-        }
-      }
-
-      // Restore original rotation
-      triangle.rotation = originalRotation;
-    }
-
-    if (bestMove) {
-      // Make the move
-      this.placeTileDirectly(
-        bestMove.tileIndex,
-        bestMove.row,
-        bestMove.col,
-        bestMove.rotation
-      );
-    } else {
-      // No valid move, pass turn
-      this.cpuThinking = true; // Allow pass
-      this.passTurn();
-    }
-  }
-
-  findValidPlacements(triangle) {
-    const validPositions = [];
-
-    if (this.board.tiles.size === 0) {
-      return [{ row: 0, col: 0 }];
-    }
-
-    const checked = new Set();
-
-    for (const [key] of this.board.tiles) {
-      const [row, col] = key.split(",").map(Number);
-      const adjacent = this.board.getAdjacentCells(row, col);
-
-      for (const adj of adjacent) {
-        const adjKey = this.board.getKey(adj.row, adj.col);
-        if (checked.has(adjKey)) continue;
-        checked.add(adjKey);
-
-        if (this.board.canPlace(adj.row, adj.col, triangle).valid) {
-          validPositions.push({ row: adj.row, col: adj.col });
-        }
-      }
-    }
-
-    return validPositions;
   }
 
   showTurnAnnouncement(playerName, callback) {
@@ -490,6 +422,7 @@ class Game {
     announcement.classList.add("show");
 
     // Auto-dismiss after 1.5 seconds (shorter for CPU)
+    const isCPU = this.isCurrentPlayerCPU();
     const duration = isCPU ? 1000 : 1500;
     this.turnAnnouncementTimeout = setTimeout(() => {
       this.dismissTurnAnnouncement();
@@ -546,7 +479,9 @@ class Game {
         const isWinner = score === maxScore;
         const isCPU = this.cpuPlayers[i];
         return `<div class="score-row ${isWinner ? "winner-row" : ""}">
-                <span>${this.getPlayerName(i)}${isCPU ? I18n.t("cpuSuffix") : ""}</span>
+                <span>${this.getPlayerName(i)}${
+          isCPU ? I18n.t("cpuSuffix") : ""
+        }</span>
                 <span>${I18n.t("nPoints", { n: score })}</span>
             </div>`;
       })
@@ -561,7 +496,8 @@ class Game {
     const playerName = document.getElementById("current-player");
     const isCPU = this.cpuPlayers[this.currentPlayer];
     playerName.textContent =
-      this.getPlayerName(this.currentPlayer) + (isCPU ? I18n.t("cpuSuffix") : "");
+      this.getPlayerName(this.currentPlayer) +
+      (isCPU ? I18n.t("cpuSuffix") : "");
     playerName.style.color = PLAYER_COLORS[this.currentPlayer];
 
     // Update scores
@@ -606,7 +542,7 @@ class Game {
     const isCPU = this.isCurrentPlayerCPU();
 
     hand.forEach((triangle, index) => {
-      const svg = this.createTriangleSVG(
+      const svg = TileRenderer.createHandTileSVG(
         triangle,
         index === this.selectedTile,
         isCPU
@@ -622,114 +558,6 @@ class Game {
       }
       container.appendChild(svg);
     });
-  }
-
-  createTriangleSVG(triangle, selected = false, hidden = false) {
-    const size = 85;
-    const h = size;
-    const w = (h * 2) / Math.sqrt(3);
-
-    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-    svg.setAttribute("width", w + 10);
-    svg.setAttribute("height", h + 10);
-    svg.setAttribute("viewBox", `0 0 ${w + 10} ${h + 10}`);
-    svg.classList.add("hand-tile");
-    if (selected) svg.classList.add("selected");
-    if (hidden) svg.style.opacity = "0.5";
-
-    const cx = w / 2 + 5;
-    const cy = h / 2 + 5;
-
-    // Triangle vertices (pointing up)
-    const vertices = [
-      { x: cx, y: cy - h / 2 }, // Top
-      { x: cx - w / 2, y: cy + h / 2 }, // Bottom left
-      { x: cx + w / 2, y: cy + h / 2 }, // Bottom right
-    ];
-
-    // Background
-    const bg = document.createElementNS(
-      "http://www.w3.org/2000/svg",
-      "polygon"
-    );
-    bg.setAttribute("points", vertices.map((v) => `${v.x},${v.y}`).join(" "));
-    bg.setAttribute("fill", hidden ? "#2a2a3a" : "#1a1a25");
-    bg.setAttribute("stroke", selected ? "#00f5d4" : "#2a2a3a");
-    bg.setAttribute("stroke-width", selected ? "3" : "1");
-    svg.appendChild(bg);
-
-    // If hidden (CPU), don't show the values/colors
-    if (hidden) {
-      // Draw a simple pattern to indicate hidden tile
-      const questionMark = document.createElementNS(
-        "http://www.w3.org/2000/svg",
-        "text"
-      );
-      questionMark.setAttribute("x", cx);
-      questionMark.setAttribute("y", cy + 5);
-      questionMark.setAttribute("text-anchor", "middle");
-      questionMark.setAttribute("dominant-baseline", "middle");
-      questionMark.setAttribute("fill", "#555566");
-      questionMark.setAttribute("font-family", "Orbitron, sans-serif");
-      questionMark.setAttribute("font-weight", "bold");
-      questionMark.setAttribute("font-size", "20");
-      questionMark.textContent = "?";
-      svg.appendChild(questionMark);
-      return svg;
-    }
-
-    // Sides
-    const sides = [
-      [vertices[1], vertices[2]], // Side 0 (bottom)
-      [vertices[0], vertices[1]], // Side 1 (left)
-      [vertices[2], vertices[0]], // Side 2 (right)
-    ];
-
-    for (let i = 0; i < 3; i++) {
-      const side = triangle.getSide(i);
-      const [v1, v2] = sides[i];
-
-      // Colored line
-      const line = document.createElementNS(
-        "http://www.w3.org/2000/svg",
-        "line"
-      );
-      line.setAttribute("x1", v1.x);
-      line.setAttribute("y1", v1.y);
-      line.setAttribute("x2", v2.x);
-      line.setAttribute("y2", v2.y);
-      line.setAttribute("stroke", COLORS[side.color]);
-      line.setAttribute("stroke-width", "4");
-      line.setAttribute("stroke-linecap", "round");
-      svg.appendChild(line);
-
-      // Value
-      const midX = (v1.x + v2.x) / 2;
-      const midY = (v1.y + v2.y) / 2;
-
-      const toCenter = { x: cx - midX, y: cy - midY };
-      const len = Math.sqrt(toCenter.x * toCenter.x + toCenter.y * toCenter.y);
-      const offset = 18;
-      const labelX = midX + (toCenter.x / len) * offset;
-      const labelY = midY + (toCenter.y / len) * offset;
-
-      const text = document.createElementNS(
-        "http://www.w3.org/2000/svg",
-        "text"
-      );
-      text.setAttribute("x", labelX);
-      text.setAttribute("y", labelY);
-      text.setAttribute("text-anchor", "middle");
-      text.setAttribute("dominant-baseline", "middle");
-      text.setAttribute("fill", COLORS[side.color]);
-      text.setAttribute("font-family", "Rajdhani, sans-serif");
-      text.setAttribute("font-weight", "bold");
-      text.setAttribute("font-size", "14");
-      text.textContent = side.value;
-      svg.appendChild(text);
-    }
-
-    return svg;
   }
 
   showMessage(text, isError = false) {
