@@ -39,6 +39,7 @@ const LANG_FR = {
   playerLeft: "{name} a quitté la partie",
 
   // Online errors
+  connectingToServer: "Connexion au serveur... Veuillez patienter.",
   firebaseNotAvailable:
     "Mode en ligne non disponible. Vérifiez votre connexion.",
   failedToHost: "Échec de création de la salle. Réessayez.",

@@ -39,6 +39,7 @@ const LANG_EN = {
   playerLeft: "{name} left the game",
 
   // Online errors
+  connectingToServer: "Connecting to server... Please wait.",
   firebaseNotAvailable: "Online mode not available. Check your connection.",
   failedToHost: "Failed to create room. Please try again.",
   failedToJoin: "Failed to join room. Please try again.",

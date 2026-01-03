@@ -13,10 +13,27 @@ const OnlineGameExtension = {
   apply(game) {
     // Add online-specific state
     game.gameMode = "local"; // 'local', 'host', 'join'
+    game.networkInitializing = true;
 
     // Create network manager
     game.network = new NetworkManager(game);
-    game.network.init();
+
+    // Initialize Firebase asynchronously (includes authentication)
+    // This runs in the background - isAvailable() will return false until ready
+    game.network
+      .init()
+      .then((success) => {
+        game.networkInitializing = false;
+        if (success) {
+          console.log("Online multiplayer ready");
+        } else {
+          console.log("Online multiplayer not available");
+        }
+      })
+      .catch((error) => {
+        game.networkInitializing = false;
+        console.error("Network initialization failed:", error);
+      });
 
     // Bind all extension methods to the game instance
     Object.keys(OnlineGameExtension.methods).forEach((methodName) => {
@@ -306,6 +323,12 @@ const OnlineGameExtension = {
     async hostOnlineGame() {
       const errorEl = document.getElementById("online-error");
 
+      if (this.networkInitializing) {
+        errorEl.textContent = I18n.t("connectingToServer");
+        errorEl.style.display = "block";
+        return;
+      }
+
       if (!this.network.isAvailable()) {
         errorEl.textContent = I18n.t("firebaseNotAvailable");
         errorEl.style.display = "block";
@@ -340,6 +363,12 @@ const OnlineGameExtension = {
      */
     async joinOnlineGame() {
       const errorEl = document.getElementById("online-error");
+
+      if (this.networkInitializing) {
+        errorEl.textContent = I18n.t("connectingToServer");
+        errorEl.style.display = "block";
+        return;
+      }
 
       if (!this.network.isAvailable()) {
         errorEl.textContent = I18n.t("firebaseNotAvailable");

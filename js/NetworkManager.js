@@ -1,43 +1,46 @@
 /**
  * Handles online multiplayer via Firebase Realtime Database.
+ * Uses Firebase Anonymous Authentication for secure player identification.
  * This is optional - the game works fully offline in local mode.
  */
 class NetworkManager {
   constructor(game) {
     this.game = game;
     this.db = null;
+    this.auth = null;
     this.roomRef = null;
     this.roomCode = null;
-    this.playerId = null;
+    this.playerId = null; // Will be set to auth.uid after authentication
     this.playerSlot = null;
     this.isOnline = false;
     this.isHost = false;
     this.playerName = "";
     this.connectedPlayers = new Map();
     this.initialized = false;
+    this.authenticated = false;
     this.lastStateTimestamp = 0;
   }
 
   /**
-   * Initialize Firebase (call once on app start)
+   * Initialize Firebase and authenticate (call once on app start)
+   * @returns {Promise<boolean>} Whether initialization succeeded
    */
-  init() {
+  async init() {
     // Check if Firebase is available
     if (typeof firebase === "undefined") {
       console.warn("Firebase SDK not loaded - online mode disabled");
       return false;
     }
 
-    // Firebase config - using a demo project for testing
-    // Replace with your own Firebase project config for production
+    // Firebase config for tens project
     const firebaseConfig = {
-      apiKey: "AIzaSyBxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
-      authDomain: "tens-game-demo.firebaseapp.com",
-      databaseURL: "https://tens-game-demo-default-rtdb.firebaseio.com",
-      projectId: "tens-game-demo",
-      storageBucket: "tens-game-demo.appspot.com",
-      messagingSenderId: "123456789",
-      appId: "1:123456789:web:abcdef123456",
+      apiKey: "AIzaSyAgaF_z8y07yO5zx2KiwAQxSHxMrMl6N_0",
+      authDomain: "tens-49e4a.firebaseapp.com",
+      databaseURL: "https://tens-49e4a-default-rtdb.firebaseio.com",
+      projectId: "tens-49e4a",
+      storageBucket: "tens-49e4a.firebasestorage.app",
+      messagingSenderId: "433112178354",
+      appId: "1:433112178354:web:4dfcf9dfe578965ed073ab",
     };
 
     try {
@@ -46,16 +49,14 @@ class NetworkManager {
         firebase.initializeApp(firebaseConfig);
       }
       this.db = firebase.database();
+      this.auth = firebase.auth();
 
-      // Generate or retrieve persistent player ID
-      this.playerId = localStorage.getItem("tens_playerId");
-      if (!this.playerId) {
-        this.playerId = this.generateId();
-        localStorage.setItem("tens_playerId", this.playerId);
-      }
+      // Sign in anonymously - this gives us a verified auth.uid
+      // that can be used in security rules
+      await this.signInAnonymously();
 
       this.initialized = true;
-      console.log("Firebase initialized, player ID:", this.playerId);
+      console.log("Firebase initialized, authenticated as:", this.playerId);
       return true;
     } catch (error) {
       console.error("Firebase initialization failed:", error);
@@ -64,14 +65,61 @@ class NetworkManager {
   }
 
   /**
-   * Check if Firebase is ready
+   * Sign in anonymously to get a verified user ID
+   * @returns {Promise<void>}
    */
-  isAvailable() {
-    return this.initialized && this.db !== null;
+  async signInAnonymously() {
+    try {
+      // Check if already signed in
+      const currentUser = this.auth.currentUser;
+      if (currentUser) {
+        this.playerId = currentUser.uid;
+        this.authenticated = true;
+        console.log("Already authenticated:", this.playerId);
+        return;
+      }
+
+      // Sign in anonymously
+      const userCredential = await this.auth.signInAnonymously();
+      this.playerId = userCredential.user.uid;
+      this.authenticated = true;
+      console.log("Signed in anonymously:", this.playerId);
+
+      // Listen for auth state changes (e.g., token refresh)
+      this.auth.onAuthStateChanged((user) => {
+        if (user) {
+          this.playerId = user.uid;
+          this.authenticated = true;
+        } else {
+          // User signed out, try to sign in again
+          this.authenticated = false;
+          this.signInAnonymously();
+        }
+      });
+    } catch (error) {
+      console.error("Anonymous authentication failed:", error);
+      // Fall back to localStorage ID (less secure, won't work with strict rules)
+      this.playerId = localStorage.getItem("tens_playerId");
+      if (!this.playerId) {
+        this.playerId = this.generateId();
+        localStorage.setItem("tens_playerId", this.playerId);
+      }
+      console.warn(
+        "Using fallback player ID (not authenticated):",
+        this.playerId
+      );
+    }
   }
 
   /**
-   * Generate a unique player ID
+   * Check if Firebase is ready and authenticated
+   */
+  isAvailable() {
+    return this.initialized && this.db !== null && this.authenticated;
+  }
+
+  /**
+   * Generate a unique player ID (fallback only)
    */
   generateId() {
     return (
@@ -112,6 +160,7 @@ class NetworkManager {
     this.connectedPlayers.clear();
 
     // Create room in Firebase
+    // The playerId here is auth.uid, which is verified by Firebase
     await this.roomRef.set({
       settings: {
         playerCount,
@@ -139,7 +188,7 @@ class NetworkManager {
     // Listen for player changes
     this.setupPlayerListeners();
 
-    // Set up disconnect handling
+    // Set up disconnect handling - automatically mark as disconnected
     this.roomRef
       .child(`players/${this.playerId}/connected`)
       .onDisconnect()
@@ -193,7 +242,7 @@ class NetworkManager {
       throw new Error("roomFull");
     }
 
-    // Add self to room
+    // Add self to room (using auth.uid as the key)
     await this.roomRef.child(`players/${this.playerId}`).set({
       name: playerName,
       slot: this.playerSlot,
@@ -231,28 +280,28 @@ class NetworkManager {
   setupPlayerListeners() {
     // Player joined
     this.roomRef.child("players").on("child_added", (snapshot) => {
-      const playerId = snapshot.key;
+      const odPlayerId = snapshot.key;
       const playerData = snapshot.val();
 
-      if (!this.connectedPlayers.has(playerId)) {
-        this.connectedPlayers.set(playerId, playerData);
+      if (!this.connectedPlayers.has(odPlayerId)) {
+        this.connectedPlayers.set(odPlayerId, playerData);
         this.game.onPlayerJoined(playerData);
       }
     });
 
     // Player updated (connected/disconnected)
     this.roomRef.child("players").on("child_changed", (snapshot) => {
-      const playerId = snapshot.key;
+      const odPlayerId = snapshot.key;
       const playerData = snapshot.val();
-      this.connectedPlayers.set(playerId, playerData);
+      this.connectedPlayers.set(odPlayerId, playerData);
       this.game.onPlayerUpdated(playerData);
     });
 
     // Player left
     this.roomRef.child("players").on("child_removed", (snapshot) => {
-      const playerId = snapshot.key;
-      const playerData = this.connectedPlayers.get(playerId);
-      this.connectedPlayers.delete(playerId);
+      const odPlayerId = snapshot.key;
+      const playerData = this.connectedPlayers.get(odPlayerId);
+      this.connectedPlayers.delete(odPlayerId);
       if (playerData) {
         this.game.onPlayerLeft(playerData);
       }
@@ -345,6 +394,10 @@ class NetworkManager {
       });
     } catch (error) {
       console.error("Failed to broadcast state:", error);
+      // Show user-friendly error if it's a permission error
+      if (error.code === "PERMISSION_DENIED") {
+        this.game.showMessage?.("Connection error - please rejoin", true);
+      }
     }
   }
 
