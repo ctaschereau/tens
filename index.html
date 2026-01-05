@@ -36,7 +36,49 @@
                     <option value="fr">Français</option>
                 </select>
             </div>
+            
+            <!-- Game Mode Selection -->
             <div class="setup-group">
+                <label data-i18n="gameMode">Game Mode</label>
+                <div class="game-mode-selector">
+                    <label class="mode-option">
+                        <input type="radio" name="game-mode" value="local" checked>
+                        <span class="mode-label">
+                            <span class="mode-icon">🏠</span>
+                            <span class="mode-text" data-i18n="localMode">Local (Hotseat)</span>
+                        </span>
+                    </label>
+                    <label class="mode-option">
+                        <input type="radio" name="game-mode" value="host">
+                        <span class="mode-label">
+                            <span class="mode-icon">🌐</span>
+                            <span class="mode-text" data-i18n="hostOnline">Host Online Game</span>
+                        </span>
+                    </label>
+                    <label class="mode-option">
+                        <input type="radio" name="game-mode" value="join">
+                        <span class="mode-label">
+                            <span class="mode-icon">🔗</span>
+                            <span class="mode-text" data-i18n="joinOnline">Join Online Game</span>
+                        </span>
+                    </label>
+                </div>
+            </div>
+            
+            <!-- Join Game: Room Code Input -->
+            <div class="setup-group online-join-group" id="join-game-group" style="display: none;">
+                <label for="join-room-code" data-i18n="roomCode">Room Code</label>
+                <input type="text" id="join-room-code" class="room-code-input" placeholder="ABC123" maxlength="6">
+            </div>
+            
+            <!-- Your Name (for online modes) -->
+            <div class="setup-group online-name-group" id="online-name-group" style="display: none;">
+                <label for="online-player-name" data-i18n="yourName">Your Name</label>
+                <input type="text" id="online-player-name" placeholder="Player">
+            </div>
+            
+            <!-- Local mode: Player count -->
+            <div class="setup-group local-only-group" id="player-count-group">
                 <label for="setup-player-count" data-i18n="numberOfPlayers">Number of Players</label>
                 <select id="setup-player-count">
                     <option value="2" data-i18n="nPlayers" data-i18n-params='{"n":2}'>2 Players</option>
@@ -44,11 +86,36 @@
                     <option value="4" data-i18n="nPlayers" data-i18n-params='{"n":4}'>4 Players</option>
                 </select>
             </div>
-            <div class="setup-group">
+            
+            <!-- Local mode: Player names -->
+            <div class="setup-group local-only-group" id="players-group">
                 <label data-i18n="players">Players</label>
                 <div class="setup-players" id="setup-players-container"></div>
             </div>
+            
+            <div class="online-error" id="online-error" style="display: none;"></div>
+            
             <button class="btn btn-primary" id="start-game-btn" data-i18n="startGame">Start Game</button>
+        </div>
+    </div>
+    
+    <!-- Online Lobby Modal (waiting for players) -->
+    <div class="modal" id="lobby-modal">
+        <div class="modal-content lobby-content">
+            <h2 data-i18n="waitingForPlayers">Waiting for Players</h2>
+            <div class="room-code-display">
+                <span data-i18n="roomCodeLabel">Room Code:</span>
+                <span class="room-code" id="lobby-room-code">ABC123</span>
+                <button class="btn btn-small" id="copy-code-btn" data-i18n="copy">Copy</button>
+            </div>
+            <div class="lobby-players" id="lobby-players">
+                <!-- Player slots will be added here -->
+            </div>
+            <div class="lobby-status" id="lobby-status" data-i18n="waitingForMore">Waiting for more players...</div>
+            <div class="lobby-buttons">
+                <button class="btn btn-secondary" id="leave-lobby-btn" data-i18n="leave">Leave</button>
+                <button class="btn btn-primary" id="start-online-btn" disabled data-i18n="startGame">Start Game</button>
+            </div>
         </div>
     </div>
 
@@ -106,6 +173,11 @@
         </div>
     </div>
 
+    <!-- Firebase SDK (optional - for online multiplayer) -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-database-compat.js"></script>
+    
     <script src="js/i18n/en.js"></script>
     <script src="js/i18n/fr.js"></script>
     <script src="js/i18n/i18n.js"></script>
@@ -114,7 +186,9 @@
     <script src="js/TileRenderer.js"></script>
     <script src="js/GameBoard.js"></script>
     <script src="js/CPUPlayer.js"></script>
+    <script src="js/NetworkManager.js"></script>
     <script src="js/Game.js"></script>
+    <script src="js/OnlineGameExtension.js"></script>
     <script src="js/main.js"></script>
 </body>
 </html>

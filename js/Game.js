@@ -1,5 +1,7 @@
 /**
  * Main game controller handling players, turns, and game state.
+ * This is the core local game logic - online functionality is added
+ * via OnlineGameExtension.
  */
 class Game {
   constructor() {
@@ -183,6 +185,14 @@ class Game {
   }
 
   startGameFromSetup() {
+    // Start local game (can be overridden by OnlineGameExtension)
+    this.startLocalGame();
+  }
+
+  /**
+   * Start a local (hotseat) game
+   */
+  startLocalGame() {
     // Read player count
     this.playerCount = parseInt(
       document.getElementById("setup-player-count").value

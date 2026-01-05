@@ -15,6 +15,40 @@ const LANG_EN = {
   startGame: "Start Game",
   cpu: "CPU",
 
+  // Game mode
+  gameMode: "Game Mode",
+  localMode: "Local (Hotseat)",
+  hostOnline: "Host Online Game",
+  joinOnline: "Join Online Game",
+  roomCode: "Room Code",
+  yourName: "Your Name",
+  createRoom: "Create Room",
+  joinRoom: "Join Room",
+
+  // Lobby
+  waitingForPlayers: "Waiting for Players",
+  roomCodeLabel: "Room Code:",
+  copy: "Copy",
+  leave: "Leave",
+  waitingForPlayer: "Waiting for player...",
+  you: "You",
+  allPlayersReady: "All players ready!",
+  waitingForMore: "Waiting for players ({current}/{total})...",
+  codeCopied: "Room code copied!",
+  playerJoined: "{name} joined the game",
+  playerLeft: "{name} left the game",
+
+  // Online errors
+  connectingToServer: "Connecting to server... Please wait.",
+  firebaseNotAvailable: "Online mode not available. Check your connection.",
+  failedToHost: "Failed to create room. Please try again.",
+  failedToJoin: "Failed to join room. Please try again.",
+  roomNotFound: "Room not found. Check the code and try again.",
+  gameAlreadyStarted: "This game has already started.",
+  roomFull: "This room is full.",
+  enterValidCode: "Please enter a valid room code.",
+  notYourTurn: "It's not your turn!",
+
   // Game info
   currentPlayer: "Current Player",
   newGame: "New Game",

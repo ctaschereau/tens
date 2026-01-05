@@ -15,6 +15,41 @@ const LANG_FR = {
   startGame: "Commencer",
   cpu: "Ordi",
 
+  // Game mode
+  gameMode: "Mode de Jeu",
+  localMode: "Local (Même écran)",
+  hostOnline: "Héberger une Partie",
+  joinOnline: "Rejoindre une Partie",
+  roomCode: "Code de la Salle",
+  yourName: "Votre Nom",
+  createRoom: "Créer la Salle",
+  joinRoom: "Rejoindre",
+
+  // Lobby
+  waitingForPlayers: "En Attente des Joueurs",
+  roomCodeLabel: "Code de Salle:",
+  copy: "Copier",
+  leave: "Quitter",
+  waitingForPlayer: "En attente d'un joueur...",
+  you: "Vous",
+  allPlayersReady: "Tous les joueurs sont prêts!",
+  waitingForMore: "En attente de joueurs ({current}/{total})...",
+  codeCopied: "Code copié!",
+  playerJoined: "{name} a rejoint la partie",
+  playerLeft: "{name} a quitté la partie",
+
+  // Online errors
+  connectingToServer: "Connexion au serveur... Veuillez patienter.",
+  firebaseNotAvailable:
+    "Mode en ligne non disponible. Vérifiez votre connexion.",
+  failedToHost: "Échec de création de la salle. Réessayez.",
+  failedToJoin: "Échec de connexion. Réessayez.",
+  roomNotFound: "Salle introuvable. Vérifiez le code.",
+  gameAlreadyStarted: "Cette partie a déjà commencé.",
+  roomFull: "Cette salle est pleine.",
+  enterValidCode: "Veuillez entrer un code valide.",
+  notYourTurn: "Ce n'est pas votre tour!",
+
   // Game info
   currentPlayer: "Joueur Actuel",
   newGame: "Nouvelle Partie",
