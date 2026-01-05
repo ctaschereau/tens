@@ -376,6 +376,9 @@ class NetworkManager {
     // Update status to playing
     await this.roomRef.child("settings/status").set("playing");
 
+    // Host also needs to listen for state changes from other players
+    this.setupStateListener();
+
     // Broadcast initial state
     await this.broadcastState(gameState);
   }
